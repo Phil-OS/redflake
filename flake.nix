@@ -20,7 +20,6 @@
           metasploit
           nmap
           hashcat
-          wordlists
           netexec
           responder
           kerbrute
