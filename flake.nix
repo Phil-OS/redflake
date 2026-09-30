@@ -1,5 +1,5 @@
 {
-  description = "Red teaming toolkit";
+  description = "Red teaming toolkit, for professional use only. With great power comes great responsibility.";
 
   inputs = { nixpkgs.url = "github:nixos/nixpkgs/nixos-25.05"; };
 
