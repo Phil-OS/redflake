@@ -62,13 +62,23 @@ stays available; its lifetime follows the shell session.
 
 | Profile | Contents |
 | --- | --- |
-| `core` | Git, curl, jq, ripgrep, fzf, tmux, Vim, Neovim, portable zsh, Pygments, less, man |
-| `web` | Core plus dirb and Nmap |
-| `ad` | Core, NetExec, Responder, Kerbrute, Evil-WinRM, network tools, Python environment |
-| `full` / default | All groups, including Hydra, Hashcat, John, and Metasploit |
+| `core` | Git, curl, jq, ripgrep, fzf, tmux, Vim, Neovim, portable zsh, Pygments, less, man, OpenSSH, Nmap/Ncat, dig |
+| `web` | Core plus dirb, ffuf, sqlmap and SecLists |
+| `ad` | Core, NetExec, Responder, Kerbrute, Evil-WinRM, BloodHound CE collector, bloodyAD, ldapdomaindump, enum4linux-ng, Kerberos/LDAP/SMB/RPC clients, network tools, tcpdump, tshark, Python environment and SecLists |
+| `gui` | Web profile plus Burp Suite; select explicitly for a graphical session |
+| `full` / default | All terminal groups, shared Python and SecLists, including Hydra, Hashcat, John and Metasploit |
 
-Network tools are Nmap, FreeRDP, Ligolo-ng, proxychains, and sshuttle.
+Network tools include FreeRDP, Ligolo-ng, proxychains and sshuttle.
+OpenSSH supplies `ssh`, `scp`, `sftp`, `ssh-keygen`, `ssh-agent` and `ssh-add`
+in every profile. Ncat is `ncat`, supplied by Nmap alongside `nmap`; DNS
+queries use `dig`. AD/full also supply `kinit`, `klist`, `kdestroy`,
+`ldapsearch`, `smbclient` and `rpcclient`.
 The Python environment contains Impacket, pwntools, and Certipy AD.
+The selected collector is [BloodHound Community Edition Python 1.9.1](https://pypi.org/project/bloodhound-ce/1.9.1/),
+with command `bloodhound-ce-python` in AD/full. Its source is pinned in a local
+Nix derivation and its dependencies use the locked Nixpkgs. New Python
+applications have isolated packaged wrappers. This installs the CE collector;
+the legacy collector and BloodHound server/database are separate applications.
 `flake.nix` owns the named tool groups and uses `mkShell.packages` for executables.
 Add tools to the appropriate group, then run validation before updating the lock.
 Unfree packages are allowed by this flake; each tool retains its own license.
@@ -77,8 +87,27 @@ Unfree packages are allowed by this flake; each tool retains its own license.
 nix develop .#core
 nix develop .#web
 nix develop .#ad
+nix develop .#gui
 nix develop .#full
 ```
+
+Burp is available only in `gui`, through the Nixpkgs `burpsuite` wrapper. Run
+`burpsuite` from that profile when a graphical session/display is available.
+Shell activation starts no GUI application. Full/default exclude Burp so
+terminal sessions avoid its additional download.
+
+Web, AD, GUI and full export `REDFLAKE_SECLISTS`, pointing to the selected
+package's `/nix/store/...-seclists-.../share/wordlists/seclists` directory:
+
+```bash
+ls "$REDFLAKE_SECLISTS/Discovery/Web-Content"
+```
+
+Wordlists are read-only Nix store assets. Put outputs and modified copies in
+your working directory. Core does not include these assets or set the variable.
+SSH keys/configuration, Kerberos realms/ticket caches and tool settings remain
+under your control. See [the tool inventory](tools.md) for package sources and
+pending wishlist entries.
 
 Only x86_64 Linux is advertised. ARM Linux, macOS, and native Windows are not
 validated targets. WSL needs a Linux environment with working Nix daemon support.
@@ -126,7 +155,8 @@ revision and content hash. Keep both in Git. Normal use follows the lock file.
 ```bash
 nix flake update nixpkgs
 nix flake check --no-update-lock-file
-for profile in core web ad full; do
+for profile in core web ad gui full; do
+  nix build --no-update-lock-file --no-link ".#devShells.x86_64-linux.$profile"
   nix develop --no-update-lock-file ".#$profile" --command bash scripts/smoke.sh "$profile"
 done
 git diff -- flake.lock
@@ -144,19 +174,26 @@ Git-backed flake commands: Nix omits untracked files from that source snapshot.
 python3 -B -m unittest discover -s tests -v
 bash -n quickconfig.sh scripts/smoke.sh
 nix flake check --no-update-lock-file
-for profile in core web ad full; do
-  nix develop --no-update-lock-file ".#$profile" --command bash scripts/smoke.sh "$profile"
+for profile in core web ad gui full; do
+  nix build --no-update-lock-file --no-link ".#devShells.x86_64-linux.$profile"
+  env -u DISPLAY -u WAYLAND_DISPLAY HOME="$(mktemp -d)" \
+    timeout 45 nix --extra-experimental-features 'nix-command flakes' develop --no-update-lock-file ".#$profile" --command bash scripts/smoke.sh "$profile"
 done
 python3 tests/check_nix_shell.py --flake "$PWD"
 ```
 
 GitHub Actions evaluates the flake, runs ShellCheck and isolated bootstrap
 regression tests and packaged zsh startup checks, then realizes and smoke-tests
-every profile. A bounded PTY test verifies automatic zsh entry for all profiles
-and the default, explicit command behavior, and startup outside the checkout.
-Smoke checks verify executable availability, run basic core commands, and import the Python
-libraries. They do not contact targets or establish that every tool's operational
-features work. Full-shell realization is separate from `nix flake check` because
+all five profiles. Smoke checks run with a temporary HOME and no display,
+with a timeout after each profile is realized. A bounded PTY test verifies
+automatic zsh entry for all profiles and the default, explicit command behavior,
+and startup outside the checkout. It also checks that GUI resolves Burp to its
+Nix wrapper and that full excludes it under a sanitized inherited PATH and in
+its declared package list. Burp gets only a command-path check; validation never
+launches Burp or Java. Smoke checks verify executable availability, harmless
+help/version startup, read-only wordlist availability and Python imports. They
+do not contact targets, test GUI rendering or establish that every tool's
+operational features work. Shell realization is separate from `nix flake check` because
 evaluating a shell does not build its complete dependency closure.
 
 ## Host requirements and troubleshooting
@@ -174,6 +211,9 @@ evaluating a shell does not build its complete dependency closure.
   runtimes. Installing the executable does not configure the GPU.
 - **FreeRDP:** requires access to a graphical session. A successful package build
   does not provide a display server.
+- **Burp Suite:** enter `nix develop .#gui` and use a working graphical session
+  before launching `burpsuite`. It is absent from full/default and is never
+  launched automatically.
 - **Metasploit and other stateful tools:** databases, credentials, workspaces,
   and service startup remain host/user responsibilities. This flake starts no
   services and isolates no network or filesystem access.

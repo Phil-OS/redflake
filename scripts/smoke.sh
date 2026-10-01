@@ -8,6 +8,7 @@ web_commands=(dirb ffuf sqlmap)
 case "$profile" in
     core) ;;
     web) commands+=("${web_commands[@]}") ;;
+    gui) commands+=("${web_commands[@]}" burpsuite) ;;
     ad) commands+=(nxc responder kerbrute evil-winrm xfreerdp ligolo-proxy proxychains4 sshuttle python3 "${ad_commands[@]}") ;;
     full|default) commands+=(nxc responder kerbrute evil-winrm xfreerdp ligolo-proxy proxychains4 sshuttle hydra hashcat john msfconsole python3 "${ad_commands[@]}" "${web_commands[@]}") ;;
     *) echo "Unknown profile: $profile" >&2; exit 1 ;;
@@ -48,7 +49,7 @@ if [[ "$profile" == ad || "$profile" == full || "$profile" == default ]]; then
     tcpdump --version
     tshark --version
 fi
-if [[ "$profile" == web || "$profile" == full || "$profile" == default ]]; then
+if [[ "$profile" == web || "$profile" == gui || "$profile" == full || "$profile" == default ]]; then
     ffuf -V
     python_startup_check sqlmap --version
 fi

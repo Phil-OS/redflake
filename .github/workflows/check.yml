@@ -18,8 +18,11 @@ jobs:
         run: nix flake check --no-update-lock-file
       - name: Realize and smoke-test every profile
         run: |
-          for profile in core web ad full; do
-            nix develop --no-update-lock-file ".#$profile" --command bash scripts/smoke.sh "$profile"
+          export HOME="$(mktemp -d)"
+          unset DISPLAY WAYLAND_DISPLAY
+          for profile in core web ad gui full; do
+            nix --extra-experimental-features 'nix-command flakes' build --no-update-lock-file --no-link ".#devShells.x86_64-linux.$profile"
+            timeout 45 nix --extra-experimental-features 'nix-command flakes' develop --no-update-lock-file ".#$profile" --command bash scripts/smoke.sh "$profile"
           done
       - name: Check interactive shell entry and explicit commands
         run: python3 tests/check_nix_shell.py --flake "$PWD"

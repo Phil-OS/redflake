@@ -26,6 +26,7 @@
         ];
         inspection = with pkgs; [ tcpdump wireshark-cli ];
         assets = with pkgs; [ seclists ];
+        gui = with pkgs; [ burpsuite ];
         credentials = with pkgs; [ thc-hydra hashcat john ];
         framework = with pkgs; [ metasploit ];
       };
@@ -33,9 +34,10 @@
       profiles = {
         core = groups.core;
         web = groups.core ++ groups.web ++ groups.assets;
+        gui = groups.core ++ groups.web ++ groups.assets ++ groups.gui;
         # Keep toolkit Python ahead of interpreters propagated by CLI dependencies.
         ad = [ python ] ++ groups.core ++ groups.ad ++ groups.network ++ groups.inspection ++ groups.assets;
-        full = [ python ] ++ pkgs.lib.concatLists (builtins.attrValues groups);
+        full = [ python ] ++ pkgs.lib.concatLists (builtins.attrValues (builtins.removeAttrs groups [ "gui" ]));
       };
       shells = builtins.mapAttrs (name: packages: pkgs.mkShell ({
         name = "redTool-${name}";

@@ -3,6 +3,7 @@
 import argparse
 import errno
 import fcntl
+import json
 import os
 from pathlib import Path
 import pty
@@ -36,6 +37,13 @@ class NixShellTests(unittest.TestCase):
             "XDG_CACHE_HOME": str(self.cache),
             "TERM": "xterm-256color",
         }
+        # An inherited GUI shell must not satisfy availability checks for full.
+        self.env["PATH"] = os.pathsep.join(
+            entry for entry in self.env.get("PATH", "").split(os.pathsep)
+            if entry and not (Path(entry) / "burpsuite").exists()
+        )
+        for name in ("DISPLAY", "WAYLAND_DISPLAY", "REDFLAKE_SECLISTS", "REDFLAKE_PROFILE"):
+            self.env.pop(name, None)
 
     @staticmethod
     def stop_process(process):
@@ -116,6 +124,7 @@ class NixShellTests(unittest.TestCase):
     def test_interactive_profiles_enter_configured_zsh(self):
         for profile, expected in (
             ("core", "core"), ("web", "web"), ("ad", "ad"),
+            ("gui", "gui"),
             ("full", "full"), ("default", "full"),
         ):
             with self.subTest(profile=profile):
@@ -129,7 +138,7 @@ class NixShellTests(unittest.TestCase):
                     self.assertIn("TOOLKIT_PYTHON_IMPORTS_OK", output)
 
     def test_explicit_command_preserves_shell_status_and_has_no_state(self):
-        for profile in ("core", "web", "ad", "full", "default"):
+        for profile in ("core", "web", "ad", "gui", "full", "default"):
             with self.subTest(profile=profile):
                 target = str(FLAKE) if profile == "default" else f"{FLAKE}#{profile}"
                 result = subprocess.run(
@@ -144,6 +153,43 @@ class NixShellTests(unittest.TestCase):
                 self.assertEqual(result.returncode, 23, result.stdout + result.stderr)
                 self.assertIn("REQUESTED_BASH_COMMAND", result.stdout)
                 self.assertNotIn("AUTO_ZSH_STARTED", result.stdout + result.stderr)
+                self.assertFalse((self.state / "redflake/zsh").exists())
+                self.assertFalse((self.cache / "redflake/zsh").exists())
+
+    def test_gui_is_headless_and_burp_is_excluded_from_full(self):
+        declared = {}
+        for profile in ("gui", "full"):
+            result = subprocess.run(
+                ["nix", "eval", "--no-update-lock-file", "--json",
+                 f"{FLAKE}#devShells.x86_64-linux.{profile}.nativeBuildInputs",
+                 "--apply", "ps: map (p: toString p) ps"],
+                env=self.env, cwd=self.outside, text=True,
+                capture_output=True, timeout=TIMEOUT,
+            )
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            declared[profile] = json.loads(result.stdout)
+        burp = [path for path in declared["gui"] if "-burpsuite-" in Path(path).name]
+        self.assertEqual(len(burp), 1, declared["gui"])
+        self.assertNotIn(burp[0], declared["full"])
+        self.assertFalse(any("-burpsuite-" in Path(path).name for path in declared["full"]))
+
+        for profile in ("gui", "full"):
+            with self.subTest(profile=profile):
+                code = (
+                    'test -z "${DISPLAY+x}" && test -z "${WAYLAND_DISPLAY+x}" && '
+                    'test "$(command -v burpsuite)" = "$1" && '
+                    'bash "$2" gui'
+                    if profile == "gui" else
+                    'if command -v burpsuite; then exit 1; fi'
+                )
+                result = subprocess.run(
+                    ["nix", "develop", "--no-update-lock-file", f"{FLAKE}#{profile}",
+                     "--command", "bash", "-c", code, "headless-check",
+                     f"{burp[0]}/bin/burpsuite", str(FLAKE / "scripts/smoke.sh")],
+                    env=self.env, cwd=self.outside, text=True,
+                    capture_output=True, timeout=TIMEOUT,
+                )
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
                 self.assertFalse((self.state / "redflake/zsh").exists())
                 self.assertFalse((self.cache / "redflake/zsh").exists())
 
