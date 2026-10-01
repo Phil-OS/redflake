@@ -51,7 +51,9 @@ Open a new terminal after installation, then enter the checkout and run:
 nix develop
 ```
 
-`exit` leaves the shell. Downloads remain cached in the Nix store for reuse.
+Interactive `nix develop` automatically enters the configured zsh shell.
+`exit` returns to your calling environment. Downloads remain cached in the Nix
+store for reuse.
 The first full environment can require substantial download time and disk space.
 You can move to other directories to work on engagement files while the toolkit
 stays available; its lifetime follows the shell session.
@@ -60,7 +62,7 @@ stays available; its lifetime follows the shell session.
 
 | Profile | Contents |
 | --- | --- |
-| `core` | Git, curl, jq, ripgrep, fzf, tmux, Vim |
+| `core` | Git, curl, jq, ripgrep, fzf, tmux, Vim, Neovim, portable zsh, Pygments, less, man |
 | `web` | Core plus dirb and Nmap |
 | `ad` | Core, NetExec, Responder, Kerbrute, Evil-WinRM, network tools, Python environment |
 | `full` / default | All groups, including Hydra, Hashcat, John, and Metasploit |
@@ -83,9 +85,38 @@ validated targets. WSL needs a Linux environment with working Nix daemon support
 
 ## Shell experience
 
-`nix develop` starts an interactive Bash session with the selected toolkit.
-A portable zsh configuration and launcher can be added later to provide a
-familiar prompt, aliases, plugins, and keybindings on fresh machines.
+Interactive `nix develop`, with any profile, enters the packaged Oh My Zsh
+configuration with the Jonathan theme and `colored-man-pages`, `git`, and
+`colorize` plugins. It includes the supplied completion preferences and syntax
+highlighting. Colorize uses Pygments. `EDITOR` is `nvim` locally and `vim` when
+`SSH_CONNECTION` is set.
+
+Your host `.zshrc`, `.zshenv`, Oh My Zsh installation, and login shell stay
+untouched. The launcher selects the packaged configuration through `ZDOTDIR`;
+host-wide zsh startup files still apply. An existing `~/.local/bin` remains
+available after the toolkit commands on PATH.
+
+Explicit commands keep their requested shell and exit status, without starting
+zsh or creating its interactive state. You can also start zsh deliberately with
+the `redflake-zsh` launcher, from any working directory:
+
+```bash
+nix develop .#core --command bash -c 'git --version'
+nix develop .#core --command redflake-zsh
+# Outside the checkout, use its absolute path:
+nix develop /absolute/path/to/redflake#core --command redflake-zsh
+```
+
+All profiles share history at
+`${XDG_STATE_HOME:-$HOME/.local/state}/redflake/zsh/history`. Oh My Zsh caches
+and completion dumps live under
+`${XDG_CACHE_HOME:-$HOME/.cache}/redflake/zsh`. Startup creates missing state
+directories and makes new history directories and files private. If a state
+path cannot be created, startup reports that path and stops custom configuration
+initialization; the toolkit remains available in zsh.
+
+Oh My Zsh self-updates are disabled. Update zsh, its plugins, and the rest of
+the toolkit through the Nix lock update process below.
 
 ## Updating and reproducing an environment
 
@@ -113,12 +144,17 @@ Git-backed flake commands: Nix omits untracked files from that source snapshot.
 python3 -B -m unittest discover -s tests -v
 bash -n quickconfig.sh scripts/smoke.sh
 nix flake check --no-update-lock-file
-nix develop --no-update-lock-file .#full --command bash scripts/smoke.sh full
+for profile in core web ad full; do
+  nix develop --no-update-lock-file ".#$profile" --command bash scripts/smoke.sh "$profile"
+done
+python3 tests/check_nix_shell.py --flake "$PWD"
 ```
 
 GitHub Actions evaluates the flake, runs ShellCheck and isolated bootstrap
-regression tests, then realizes and smoke-tests every profile. Smoke checks
-verify executable availability, run basic core commands, and import the Python
+regression tests and packaged zsh startup checks, then realizes and smoke-tests
+every profile. A bounded PTY test verifies automatic zsh entry for all profiles
+and the default, explicit command behavior, and startup outside the checkout.
+Smoke checks verify executable availability, run basic core commands, and import the Python
 libraries. They do not contact targets or establish that every tool's operational
 features work. Full-shell realization is separate from `nix flake check` because
 evaluating a shell does not build its complete dependency closure.

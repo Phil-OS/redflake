@@ -21,3 +21,5 @@ jobs:
           for profile in core web ad full; do
             nix develop --no-update-lock-file ".#$profile" --command bash scripts/smoke.sh "$profile"
           done
+      - name: Check interactive shell entry and explicit commands
+        run: python3 tests/check_nix_shell.py --flake "$PWD"

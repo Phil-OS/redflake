@@ -2,7 +2,7 @@
 set -euo pipefail
 
 profile=${1:-${REDFLAKE_PROFILE:-full}}
-commands=(git curl jq rg fzf tmux vim)
+commands=(git curl jq rg fzf tmux vim redflake-zsh zsh nvim pygmentize less man)
 case "$profile" in
     core) ;;
     web) commands+=(dirb nmap) ;;

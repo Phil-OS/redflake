@@ -11,7 +11,10 @@
       };
       shellPackage = import ./packages/shell.nix { inherit pkgs; };
       groups = {
-        core = with pkgs; [ git curl jq ripgrep fzf tmux vim ];
+        core = with pkgs; [
+          git curl jq ripgrep fzf tmux vim
+          shellPackage zsh neovim python3Packages.pygments less man-db
+        ];
         network = with pkgs; [ nmap freerdp ligolo-ng proxychains sshuttle ];
         web = with pkgs; [ dirb ];
         ad = with pkgs; [ netexec responder kerbrute evil-winrm ];
@@ -22,13 +25,19 @@
       profiles = {
         core = groups.core;
         web = groups.core ++ groups.web ++ [ pkgs.nmap ];
-        ad = groups.core ++ groups.ad ++ groups.network ++ [ python ];
-        full = pkgs.lib.concatLists (builtins.attrValues groups) ++ [ python ];
+        # Keep toolkit Python ahead of interpreters propagated by CLI dependencies.
+        ad = [ python ] ++ groups.core ++ groups.ad ++ groups.network;
+        full = [ python ] ++ pkgs.lib.concatLists (builtins.attrValues groups);
       };
       shells = builtins.mapAttrs (name: packages: pkgs.mkShell {
         name = "redTool-${name}";
         inherit packages;
         REDFLAKE_PROFILE = name;
+        shellHook = ''
+          case $- in
+            *i*) exec ${shellPackage}/bin/redflake-zsh ;;
+          esac
+        '';
       }) profiles;
     in {
       devShells.${system} = shells // { default = shells.full; };
