@@ -3,7 +3,7 @@ set -euo pipefail
 
 profile=${1:-${REDFLAKE_PROFILE:-full}}
 commands=(git curl jq rg fzf tmux vim redflake-zsh zsh nvim pygmentize less man ssh scp sftp ssh-keygen ssh-agent ssh-add nmap ncat dig)
-ad_commands=(bloodhound-ce-python bloodyAD ldapdomaindump enum4linux-ng kinit klist kdestroy ldapsearch smbclient rpcclient tcpdump tshark)
+ad_commands=(bloodhound-ce-python bloodyAD ldapdomaindump enum4linux-ng kinit klist kdestroy ldapsearch smbclient rpcclient tcpdump tshark zerologon-exploit zerologon-restore)
 web_commands=(dirb ffuf sqlmap)
 case "$profile" in
     core) ;;
@@ -48,6 +48,25 @@ if [[ "$profile" == ad || "$profile" == full || "$profile" == default ]]; then
     rpcclient --version
     tcpdump --version
     tshark --version
+    (
+        temporary=$(mktemp -d)
+        trap 'rm -rf "$temporary"' EXIT
+        cd "$temporary"
+        status=0
+        output=$(timeout 15 zerologon-exploit 2>&1) || status=$?
+        if [[ "$status" != 1 || "$output" != *Usage:* ]]; then
+            printf 'Zerologon usage check failed (status %s): %s\n' "$status" "$output" >&2
+            exit 1
+        fi
+        if ! output=$(timeout 15 zerologon-restore -h 2>&1); then
+            printf 'Zerologon restoration help failed: %s\n' "$output" >&2
+            exit 1
+        fi
+        if [[ "${output,,}" != *usage:* ]]; then
+            printf 'Missing Zerologon restoration help: %s\n' "$output" >&2
+            exit 1
+        fi
+    )
 fi
 if [[ "$profile" == web || "$profile" == gui || "$profile" == full || "$profile" == default ]]; then
     ffuf -V

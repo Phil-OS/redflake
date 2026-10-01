@@ -33,6 +33,7 @@ the exact revision in `flake.lock`.
 | bloodyAD (`bloodyAD`) | AD administration/assessment | ad, full | Nixpkgs `python3Packages.bloodyad` via `toPythonApplication` | Delivered |
 | ldapdomaindump | LDAP inventory | ad, full | Nixpkgs `ldapdomaindump` | Delivered |
 | enum4linux-ng | SMB/RPC enumeration | ad, full | Nixpkgs `enum4linux-ng` | Delivered |
+| Zerologon (`zerologon-exploit`, `zerologon-restore`) | DC machine-account password reset and restoration helpers | ad, full/default | Local `packages/zerologon.nix`; [upstream](https://github.com/dirkjanm/CVE-2020-1472), pinned revision/hash | Delivered; isolated Python, two top-level scripts only |
 | MIT Kerberos (`kinit`, `klist`, `kdestroy`) | Kerberos ticket clients | ad, full | Nixpkgs `krb5` | Delivered |
 | OpenLDAP (`ldapsearch`) | LDAP client | ad, full | Nixpkgs `openldap` | Delivered |
 | Samba (`smbclient`, `rpcclient`) | SMB/RPC clients | ad, full | Nixpkgs `samba` | Delivered |
@@ -61,4 +62,3 @@ distinct tools.
 | FTP client (`ftp`) | FTP transfers | None | Package not selected | Wishlist; unimplemented |
 | Remmina | Graphical remote desktop | None | Package not selected | Wishlist; unimplemented |
 | DirBuster | Graphical web content discovery | None | Package not selected | Wishlist; unimplemented |
-| Zerologon | Requested assessment tool | None | Requested upstream repository; no local package | Pending; unimplemented |

@@ -64,7 +64,7 @@ stays available; its lifetime follows the shell session.
 | --- | --- |
 | `core` | Git, curl, jq, ripgrep, fzf, tmux, Vim, Neovim, portable zsh, Pygments, less, man, OpenSSH, Nmap/Ncat, dig |
 | `web` | Core plus dirb, ffuf, sqlmap and SecLists |
-| `ad` | Core, NetExec, Responder, Kerbrute, Evil-WinRM, BloodHound CE collector, bloodyAD, ldapdomaindump, enum4linux-ng, Kerberos/LDAP/SMB/RPC clients, network tools, tcpdump, tshark, Python environment and SecLists |
+| `ad` | Core, NetExec, Responder, Kerbrute, Evil-WinRM, BloodHound CE collector, bloodyAD, ldapdomaindump, enum4linux-ng, Kerberos/LDAP/SMB/RPC clients, network tools, tcpdump, tshark, Python environment, SecLists and Zerologon |
 | `gui` | Web profile plus Burp Suite; select explicitly for a graphical session |
 | `full` / default | All terminal groups, shared Python and SecLists, including Hydra, Hashcat, John and Metasploit |
 
@@ -79,6 +79,22 @@ with command `bloodhound-ce-python` in AD/full. Its source is pinned in a local
 Nix derivation and its dependencies use the locked Nixpkgs. New Python
 applications have isolated packaged wrappers. This installs the CE collector;
 the legacy collector and BloodHound server/database are separate applications.
+
+AD, full and default also provide `zerologon-exploit` and `zerologon-restore`
+from [dirkjanm/CVE-2020-1472](https://github.com/dirkjanm/CVE-2020-1472).
+Only the two top-level scripts are installed. Their immutable revision and
+verified content hash are recorded in `packages/zerologon.nix`, with a dedicated
+Python environment containing Impacket and pycryptodomex. The commands work
+from any directory without manual cloning or pip installation, forward upstream
+arguments and exit status, and ignore ambient Python paths/home and user site
+packages. They are absent from core, web and GUI.
+
+The exploit resets a domain controller's machine-account password to an empty
+string and can disrupt communication with other domain controllers. Restoration
+requires the original password and is not guaranteed by providing the helper.
+Packaging checks exercise compilation, imports, no-argument usage and restoration
+help; they do not establish operational exploitation or restoration compatibility.
+
 `flake.nix` owns the named tool groups and uses `mkShell.packages` for executables.
 Add tools to the appropriate group, then run validation before updating the lock.
 Unfree packages are allowed by this flake; each tool retains its own license.
@@ -192,7 +208,9 @@ Nix wrapper and that full excludes it under a sanitized inherited PATH and in
 its declared package list. Burp gets only a command-path check; validation never
 launches Burp or Java. Smoke checks verify executable availability, harmless
 help/version startup, read-only wordlist availability and Python imports. They
-do not contact targets, test GUI rendering or establish that every tool's
+also verify Zerologon usage/help and their expected exit statuses without target
+arguments; its package check covers isolated imports and Python contamination.
+Checks do not contact targets, test GUI rendering or establish that every tool's
 operational features work. Shell realization is separate from `nix flake check` because
 evaluating a shell does not build its complete dependency closure.
 

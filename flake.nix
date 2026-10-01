@@ -24,6 +24,7 @@
           netexec responder kerbrute evil-winrm
           bloodhoundCePackage (python3Packages.toPythonApplication python3Packages.bloodyad)
           ldapdomaindump enum4linux-ng krb5 openldap samba
+          zerologonPackage
         ];
         inspection = with pkgs; [ tcpdump wireshark-cli ];
         assets = with pkgs; [ seclists ];
