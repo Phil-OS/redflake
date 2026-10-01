@@ -1,38 +1,44 @@
 {
-  description = "Red teaming toolkit, for professional use only. With great power comes great responsibility.";
+  description = "Reproducible red teaming toolkit for professional use";
+  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
 
-  inputs = { nixpkgs.url = "github:nixos/nixpkgs/nixos-25.05"; };
-
-  outputs = { self, nixpkgs }:
+  outputs = { nixpkgs, ... }:
     let
       system = "x86_64-linux";
       pkgs = import nixpkgs {
         inherit system;
         config.allowUnfree = true;
       };
-    in with pkgs; {
-      devShells.${system}.default = mkShell {
-        name = "redTool";
-
-        buildInputs = [
-          dirb
-          thc-hydra
-          metasploit
-          nmap
-          hashcat
-          netexec
-          responder
-          kerbrute
-          john
-          evil-winrm
-          freerdp
-          ligolo-ng
-          proxychains
-          vim
-          sshuttle
-          (python3.withPackages
-            (ps: with ps; [ impacket pwntools certipy-ad ]))
-        ];
+      groups = {
+        core = with pkgs; [ git curl jq ripgrep fzf tmux vim ];
+        network = with pkgs; [ nmap freerdp ligolo-ng proxychains sshuttle ];
+        web = with pkgs; [ dirb ];
+        ad = with pkgs; [ netexec responder kerbrute evil-winrm ];
+        credentials = with pkgs; [ thc-hydra hashcat john ];
+        framework = with pkgs; [ metasploit ];
       };
+      python = pkgs.python3.withPackages (ps: with ps; [ impacket pwntools certipy-ad ]);
+      profiles = {
+        core = groups.core;
+        web = groups.core ++ groups.web ++ [ pkgs.nmap ];
+        ad = groups.core ++ groups.ad ++ groups.network ++ [ python ];
+        full = pkgs.lib.concatLists (builtins.attrValues groups) ++ [ python ];
+      };
+      shells = builtins.mapAttrs (name: packages: pkgs.mkShell {
+        name = "redTool-${name}";
+        inherit packages;
+        REDFLAKE_PROFILE = name;
+      }) profiles;
+    in {
+      devShells.${system} = shells // { default = shells.full; };
+      checks.${system}.scripts = pkgs.runCommand "redflake-script-checks" {
+        nativeBuildInputs = [ pkgs.bash pkgs.shellcheck pkgs.python3 ];
+      } ''
+        cd ${./.}
+        bash -n quickconfig.sh scripts/smoke.sh
+        shellcheck quickconfig.sh scripts/smoke.sh
+        python3 -B -m unittest discover -s tests -v
+        touch "$out"
+      '';
     };
 }
