@@ -9,6 +9,7 @@
         inherit system;
         config.allowUnfree = true;
       };
+      shellPackage = import ./packages/shell.nix { inherit pkgs; };
       groups = {
         core = with pkgs; [ git curl jq ripgrep fzf tmux vim ];
         network = with pkgs; [ nmap freerdp ligolo-ng proxychains sshuttle ];
@@ -31,14 +32,24 @@
       }) profiles;
     in {
       devShells.${system} = shells // { default = shells.full; };
-      checks.${system}.scripts = pkgs.runCommand "redflake-script-checks" {
-        nativeBuildInputs = [ pkgs.bash pkgs.shellcheck pkgs.python3 ];
-      } ''
-        cd ${./.}
-        bash -n quickconfig.sh scripts/smoke.sh
-        shellcheck quickconfig.sh scripts/smoke.sh
-        python3 -B -m unittest discover -s tests -v
-        touch "$out"
-      '';
+      packages.${system}.redflake-shell = shellPackage;
+      checks.${system} = {
+        shell = pkgs.runCommand "redflake-shell-checks" {
+          nativeBuildInputs = [ pkgs.zsh pkgs.python3 ];
+        } ''
+          zsh -n ${shellPackage}/share/redflake/zsh/.zshrc
+          python3 -B ${./tests/check_zsh.py} --launcher ${shellPackage}/bin/redflake-zsh
+          touch "$out"
+        '';
+        scripts = pkgs.runCommand "redflake-script-checks" {
+          nativeBuildInputs = [ pkgs.bash pkgs.shellcheck pkgs.python3 ];
+        } ''
+          cd ${./.}
+          bash -n quickconfig.sh scripts/smoke.sh
+          shellcheck quickconfig.sh scripts/smoke.sh
+          python3 -B -m unittest discover -s tests -v
+          touch "$out"
+        '';
+      };
     };
 }

@@ -1,0 +1,101 @@
+# Package-owned configuration and custom directory ignore host Oh My Zsh files.
+export ZSH="@ohMyZsh@"
+export ZSH_CUSTOM="$ZDOTDIR/custom"
+export ZSH_CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/redflake/zsh"
+HISTFILE="${XDG_STATE_HOME:-$HOME/.local/state}/redflake/zsh/history"
+ZSH_COMPDUMP="$ZSH_CACHE_DIR/zcompdump-$HOST-$ZSH_VERSION"
+
+# Restrict newly created state without changing the interactive shell's umask
+# or permissions on existing directories. A failure leaves toolkit PATH usable.
+if ! (
+  umask 077
+  for redflake_dir in "${HISTFILE:h}" "$ZSH_CACHE_DIR"; do
+    if ! mkdir -p -- "$redflake_dir" || [[ ! -d "$redflake_dir" || ! -w "$redflake_dir" ]]; then
+      print -u2 -r -- "redflake-zsh: cannot initialize state directory: $redflake_dir"
+      exit 1
+    fi
+  done
+  if ! : >> "$HISTFILE"; then
+    print -u2 -r -- "redflake-zsh: cannot initialize history: $HISTFILE"
+    exit 1
+  fi
+); then
+  return
+fi
+
+zstyle ':omz:update' mode disabled
+ZSH_THEME="jonathan"
+ZSH_COLORIZE_TOOL=pygmentize
+plugins=(colored-man-pages git colorize)
+source "$ZSH/oh-my-zsh.sh"
+
+if [[ -n $SSH_CONNECTION ]]; then
+  export EDITOR=vim
+else
+  export EDITOR=nvim
+fi
+
+if [[ -d "$HOME/.local/bin" && ${path[(Ie)$HOME/.local/bin]} -eq 0 ]]; then
+  path+=("$HOME/.local/bin")
+fi
+
+# Oh My Zsh initializes compinit; apply the supplied preferences afterward.
+zstyle ':completion:*:*:*:*:*' menu select
+zstyle ':completion:*' auto-description 'specify: %d'
+zstyle ':completion:*' completer _expand _complete
+zstyle ':completion:*' format 'Completing %d'
+zstyle ':completion:*' group-name ''
+zstyle ':completion:*' list-colors ''
+zstyle ':completion:*' list-prompt '%SAt %p: Hit TAB for more, or the character to insert%s'
+zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}'
+zstyle ':completion:*' rehash true
+zstyle ':completion:*' select-prompt '%SScrolling active: current selection at %p%s'
+zstyle ':completion:*' use-compctl false
+zstyle ':completion:*' verbose true
+zstyle ':completion:*:kill:*' command 'ps -u $USER -o pid,%cpu,tty,cputime,cmd'
+
+# Set the supplied colors before highlighting installs its widgets last.
+typeset -gA ZSH_HIGHLIGHT_STYLES
+ZSH_HIGHLIGHT_HIGHLIGHTERS=(main brackets pattern)
+ZSH_HIGHLIGHT_STYLES[default]=none
+ZSH_HIGHLIGHT_STYLES[unknown-token]=underline
+ZSH_HIGHLIGHT_STYLES[reserved-word]=fg=cyan,bold
+ZSH_HIGHLIGHT_STYLES[suffix-alias]=fg=green,underline
+ZSH_HIGHLIGHT_STYLES[global-alias]=fg=green,bold
+ZSH_HIGHLIGHT_STYLES[precommand]=fg=green,underline
+ZSH_HIGHLIGHT_STYLES[commandseparator]=fg=blue,bold
+ZSH_HIGHLIGHT_STYLES[autodirectory]=fg=green,underline
+ZSH_HIGHLIGHT_STYLES[path]=bold
+ZSH_HIGHLIGHT_STYLES[path_pathseparator]=
+ZSH_HIGHLIGHT_STYLES[path_prefix_pathseparator]=
+ZSH_HIGHLIGHT_STYLES[globbing]=fg=blue,bold
+ZSH_HIGHLIGHT_STYLES[history-expansion]=fg=blue,bold
+ZSH_HIGHLIGHT_STYLES[command-substitution]=none
+ZSH_HIGHLIGHT_STYLES[command-substitution-delimiter]=fg=magenta,bold
+ZSH_HIGHLIGHT_STYLES[process-substitution]=none
+ZSH_HIGHLIGHT_STYLES[process-substitution-delimiter]=fg=magenta,bold
+ZSH_HIGHLIGHT_STYLES[single-hyphen-option]=fg=green
+ZSH_HIGHLIGHT_STYLES[double-hyphen-option]=fg=green
+ZSH_HIGHLIGHT_STYLES[back-quoted-argument]=none
+ZSH_HIGHLIGHT_STYLES[back-quoted-argument-delimiter]=fg=blue,bold
+ZSH_HIGHLIGHT_STYLES[single-quoted-argument]=fg=yellow
+ZSH_HIGHLIGHT_STYLES[double-quoted-argument]=fg=yellow
+ZSH_HIGHLIGHT_STYLES[dollar-quoted-argument]=fg=yellow
+ZSH_HIGHLIGHT_STYLES[rc-quote]=fg=magenta
+ZSH_HIGHLIGHT_STYLES[dollar-double-quoted-argument]=fg=magenta,bold
+ZSH_HIGHLIGHT_STYLES[back-double-quoted-argument]=fg=magenta,bold
+ZSH_HIGHLIGHT_STYLES[back-dollar-quoted-argument]=fg=magenta,bold
+ZSH_HIGHLIGHT_STYLES[assign]=none
+ZSH_HIGHLIGHT_STYLES[redirection]=fg=blue,bold
+ZSH_HIGHLIGHT_STYLES[comment]=fg=black,bold
+ZSH_HIGHLIGHT_STYLES[named-fd]=none
+ZSH_HIGHLIGHT_STYLES[numeric-fd]=none
+ZSH_HIGHLIGHT_STYLES[arg0]=fg=cyan
+ZSH_HIGHLIGHT_STYLES[bracket-error]=fg=red,bold
+ZSH_HIGHLIGHT_STYLES[bracket-level-1]=fg=blue,bold
+ZSH_HIGHLIGHT_STYLES[bracket-level-2]=fg=green,bold
+ZSH_HIGHLIGHT_STYLES[bracket-level-3]=fg=magenta,bold
+ZSH_HIGHLIGHT_STYLES[bracket-level-4]=fg=yellow,bold
+ZSH_HIGHLIGHT_STYLES[bracket-level-5]=fg=cyan,bold
+ZSH_HIGHLIGHT_STYLES[cursor-matchingbracket]=standout
+source "@syntaxHighlighting@"
