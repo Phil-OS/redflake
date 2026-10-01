@@ -10,6 +10,7 @@
         config.allowUnfree = true;
       };
       shellPackage = import ./packages/shell.nix { inherit pkgs; };
+      bloodhoundCePackage = import ./packages/bloodhound-ce-python.nix { inherit pkgs; };
       groups = {
         core = with pkgs; [
           git curl jq ripgrep fzf tmux vim
@@ -41,8 +42,12 @@
       }) profiles;
     in {
       devShells.${system} = shells // { default = shells.full; };
-      packages.${system}.redflake-shell = shellPackage;
+      packages.${system} = {
+        redflake-shell = shellPackage;
+        bloodhound-ce-python = bloodhoundCePackage;
+      };
       checks.${system} = {
+        bloodhound-ce-python = bloodhoundCePackage;
         shell = pkgs.runCommand "redflake-shell-checks" {
           nativeBuildInputs = [ pkgs.zsh pkgs.python3 ];
         } ''
