@@ -1,3 +1,9 @@
+## Wow, this repo is AI slop!
+Rude. But also not entirely wrong- this was an abandoned project of mine, im using it to 
+test obra/superpowers and agentic coding assistants. I am intentionally giving the AI
+much more control than I would give it over a normal project to help determine
+the quality and skill of the toolchain and agents, and figure out where else I may
+want to incorperate it into my work.
 # redflake
 
 A reproducible red-team toolkit for professional use on fresh or temporary
