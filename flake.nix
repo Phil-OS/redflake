@@ -11,6 +11,7 @@
       };
       shellPackage = import ./packages/shell.nix { inherit pkgs; };
       bloodhoundCePackage = import ./packages/bloodhound-ce-python.nix { inherit pkgs; };
+      zerologonPackage = import ./packages/zerologon.nix { inherit pkgs; };
       groups = {
         core = with pkgs; [
           git curl jq ripgrep fzf tmux vim
@@ -56,9 +57,11 @@
       packages.${system} = {
         redflake-shell = shellPackage;
         bloodhound-ce-python = bloodhoundCePackage;
+        zerologon = zerologonPackage;
       };
       checks.${system} = {
         bloodhound-ce-python = bloodhoundCePackage;
+        zerologon = zerologonPackage;
         shell = pkgs.runCommand "redflake-shell-checks" {
           nativeBuildInputs = [ pkgs.zsh pkgs.python3 ];
         } ''
