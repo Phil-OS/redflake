@@ -3,3 +3,14 @@ result-*
 __pycache__/
 *.pyc
 .worktrees/
+
+# Development files stay local and are versioned on the dev branch.
+/.github/
+/docs/
+/scripts/
+/tests/
+/README.md
+/tools.md
+/codex-design-context.md
+/zshconfig
+/.superpowers/

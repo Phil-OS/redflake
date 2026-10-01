@@ -9,7 +9,7 @@ get_pacman() {
             return
         fi
     done
-    echo "Unsupported host: install Nix manually (see README.md)." >&2
+    echo "Unsupported host: install Nix manually from https://nixos.org/download/." >&2
     return 1
 }
 
@@ -76,7 +76,7 @@ main() {
     local repo_dir pm
     repo_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
     if [[ ! -f "$repo_dir/flake.nix" || ! -f "$repo_dir/flake.lock" ]]; then
-        echo "Run quickconfig.sh from a complete redflake checkout (see README.md)." >&2
+        echo "Run quickconfig.sh from a complete redflake checkout containing flake.nix and flake.lock." >&2
         return 1
     fi
     if (( EUID == 0 )); then

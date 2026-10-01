@@ -29,15 +29,6 @@ in pkgs.stdenvNoCC.mkDerivation {
     runHook postInstall
   '';
 
-  doInstallCheck = true;
-  installCheckPhase = ''
-    runHook preInstallCheck
-    export HOME="$(mktemp -d)"
-    PYTHONDONTWRITEBYTECODE=1 ${pythonEnv}/bin/python3 -B \
-      ${../tests/check_zerologon.py} --package "$out" -v
-    runHook postInstallCheck
-  '';
-
   meta = {
     description = "Pinned top-level Zerologon scripts with isolated Python dependencies";
     homepage = "https://github.com/dirkjanm/CVE-2020-1472";

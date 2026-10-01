@@ -60,25 +60,5 @@
         bloodhound-ce-python = bloodhoundCePackage;
         zerologon = zerologonPackage;
       };
-      checks.${system} = {
-        bloodhound-ce-python = bloodhoundCePackage;
-        zerologon = zerologonPackage;
-        shell = pkgs.runCommand "redflake-shell-checks" {
-          nativeBuildInputs = [ pkgs.zsh pkgs.python3 ];
-        } ''
-          zsh -n ${shellPackage}/share/redflake/zsh/.zshrc
-          python3 -B ${./tests/check_zsh.py} --launcher ${shellPackage}/bin/redflake-zsh
-          touch "$out"
-        '';
-        scripts = pkgs.runCommand "redflake-script-checks" {
-          nativeBuildInputs = [ pkgs.bash pkgs.shellcheck pkgs.python3 ];
-        } ''
-          cd ${./.}
-          bash -n quickconfig.sh scripts/smoke.sh
-          shellcheck quickconfig.sh scripts/smoke.sh
-          python3 -B -m unittest discover -s tests -v
-          touch "$out"
-        '';
-      };
     };
 }
