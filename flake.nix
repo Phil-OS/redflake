@@ -15,22 +15,29 @@
         core = with pkgs; [
           git curl jq ripgrep fzf tmux vim
           shellPackage zsh neovim python3Packages.pygments less man-db
+          openssh nmap dig
         ];
-        network = with pkgs; [ nmap freerdp ligolo-ng proxychains sshuttle ];
-        web = with pkgs; [ dirb ];
-        ad = with pkgs; [ netexec responder kerbrute evil-winrm ];
+        network = with pkgs; [ freerdp ligolo-ng proxychains sshuttle ];
+        web = with pkgs; [ dirb ffuf sqlmap ];
+        ad = with pkgs; [
+          netexec responder kerbrute evil-winrm
+          bloodhoundCePackage (python3Packages.toPythonApplication python3Packages.bloodyad)
+          ldapdomaindump enum4linux-ng krb5 openldap samba
+        ];
+        inspection = with pkgs; [ tcpdump wireshark-cli ];
+        assets = with pkgs; [ seclists ];
         credentials = with pkgs; [ thc-hydra hashcat john ];
         framework = with pkgs; [ metasploit ];
       };
       python = pkgs.python3.withPackages (ps: with ps; [ impacket pwntools certipy-ad ]);
       profiles = {
         core = groups.core;
-        web = groups.core ++ groups.web ++ [ pkgs.nmap ];
+        web = groups.core ++ groups.web ++ groups.assets;
         # Keep toolkit Python ahead of interpreters propagated by CLI dependencies.
-        ad = [ python ] ++ groups.core ++ groups.ad ++ groups.network;
+        ad = [ python ] ++ groups.core ++ groups.ad ++ groups.network ++ groups.inspection ++ groups.assets;
         full = [ python ] ++ pkgs.lib.concatLists (builtins.attrValues groups);
       };
-      shells = builtins.mapAttrs (name: packages: pkgs.mkShell {
+      shells = builtins.mapAttrs (name: packages: pkgs.mkShell ({
         name = "redTool-${name}";
         inherit packages;
         REDFLAKE_PROFILE = name;
@@ -39,7 +46,9 @@
             *i*) exec ${shellPackage}/bin/redflake-zsh ;;
           esac
         '';
-      }) profiles;
+      } // pkgs.lib.optionalAttrs (name != "core") {
+        REDFLAKE_SECLISTS = "${pkgs.seclists}/share/wordlists/seclists";
+      })) profiles;
     in {
       devShells.${system} = shells // { default = shells.full; };
       packages.${system} = {
