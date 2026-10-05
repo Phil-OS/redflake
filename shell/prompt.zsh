@@ -35,12 +35,18 @@ ZSH_THEME_GIT_PROMPT_UNTRACKED="%F{${redflake_palette[cyan]}} %{%G✭%}"
 return_code="%(?..%F{${redflake_palette[red]}}%? ↵ %{$reset_color%})"
 
 # Keep the root indicator while displaying the chosen alias in every shell.
+# Older Jonathan versions embed escaped line breaks inside the prompt string.
+# Remove those continuations while preserving the prompt's intended newline.
+PROMPT=${PROMPT//$'\\\n'/}
 PROMPT=${PROMPT//'%(!.%SROOT%s.%n)'/'%(!.%SROOT%s .)Gebura'}
 PROMPT=${PROMPT//'%m'/'Kali'}
 PR_TITLEBAR=${PR_TITLEBAR//'%n'/'Gebura'}
 PR_TITLEBAR=${PR_TITLEBAR//'%m'/'Kali'}
+PR_STITLE=${PR_STITLE//zsh/'Gebura@Kali:%~'}
 ZSH_THEME_TERM_TITLE_IDLE=${ZSH_THEME_TERM_TITLE_IDLE//'%n'/'Gebura'}
 ZSH_THEME_TERM_TITLE_IDLE=${ZSH_THEME_TERM_TITLE_IDLE//'%m'/'Kali'}
+# The pinned Oh My Zsh uses the short tab title for screen and tmux.
+ZSH_THEME_TERM_TAB_TITLE_IDLE="Gebura@Kali:$ZSH_THEME_TERM_TAB_TITLE_IDLE"
 
 # Jonathan sizes its border using the displayed identity. Override its hook so
 # a different host username or hostname cannot shift the right-hand corner.

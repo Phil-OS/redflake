@@ -177,6 +177,16 @@ field error_style "$ZSH_HIGHLIGHT_STYLES[bracket-error]"
                                 {"TERM": "tmux-256color"})
         self.assertIn("Gebura@Kali:", report["title"])
 
+    def test_screen_prompt_preserves_display_title(self):
+        result = self.run_zsh(
+            'omz_termsupport_precmd; theme_precmd; print -Pn -- "$PROMPT"',
+            {"TERM": "screen"},
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        titles = re.findall(r"\x1bk([^\x1b]*)\x1b\\", result.stdout)
+        self.assertTrue(titles, result.stdout)
+        self.assertIn("Gebura@Kali:", titles[-1])
+
     def test_invalid_palette_color_falls_back(self):
         palette = self.root / "invalid palette.zsh"
         palette.write_text("redflake_palette[cyan]='not-a-color'\n")
