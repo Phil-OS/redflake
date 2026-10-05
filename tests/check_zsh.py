@@ -3,6 +3,7 @@
 import argparse
 import os
 from pathlib import Path
+import re
 import stat
 import subprocess
 import tempfile
@@ -123,6 +124,69 @@ zstyle -s ':completion:*:*:*:*:*' menu menu; field menu "$menu"
         self.assertEqual(report["completion_matcher"], "m:{a-zA-Z}={A-Za-z}")
         self.assertEqual(report["highlighting_loaded"], "1")
         self.assertEqual(report["menu"], "select")
+
+    def test_display_identity_and_prompt_width(self):
+        report, _ = self.report('''
+PR_TITLEBAR_SAVED=$PR_TITLEBAR
+PR_TITLEBAR=''
+COLUMNS=100
+theme_precmd
+expanded=$(print -P -- "$PROMPT")
+field first_line "${${(f)expanded}[1]}"
+field title "${(%)${(e)PR_TITLEBAR_SAVED}}"
+HOST=a-hostname-much-longer-than-the-display-name
+theme_precmd
+expanded=$(print -P -- "$PROMPT")
+field different_host "${${(f)expanded}[1]}"
+COLUMNS=40
+theme_precmd
+field narrow_hook_status "$?"
+expanded=$(print -P -- "$PROMPT")
+field narrow_line "${${(f)expanded}[1]}"
+''')
+        strip_colors = lambda value: re.sub(r"\x1b\[[0-9;]*m", "", value)
+        first = strip_colors(report["first_line"])
+        self.assertIn("Gebura@Kali:", first)
+        self.assertIn("Gebura@Kali:", report["title"])
+        self.assertEqual(len(first), 99)
+        self.assertEqual(strip_colors(report["different_host"]), first)
+        self.assertEqual(report["narrow_hook_status"], "0")
+        self.assertEqual(len(strip_colors(report["narrow_line"])), 39)
+
+    def test_palette_override_reaches_prompt_git_and_highlighting(self):
+        palette = self.root / "custom palette.zsh"
+        palette.write_text("redflake_palette[cyan]='#123456'\n"
+                           "redflake_palette[green]=magenta\n")
+        report, _ = self.report('''
+field border "$(print -P -- "$PR_CYAN")"
+field directory "$(print -P -- "$PR_GREEN")"
+field git_prefix "$(print -P -- "$ZSH_THEME_GIT_PROMPT_PREFIX")"
+field command_style "$ZSH_HIGHLIGHT_STYLES[arg0]"
+field alias_style "$ZSH_HIGHLIGHT_STYLES[suffix-alias]"
+field error_style "$ZSH_HIGHLIGHT_STYLES[bracket-error]"
+''', {"REDFLAKE_PALETTE": str(palette), "COLORTERM": "truecolor"})
+        self.assertIn("\x1b[38;2;18;52;86m", report["border"])
+        self.assertIn("\x1b[35m", report["directory"])
+        self.assertIn("\x1b[35m", report["git_prefix"])
+        self.assertEqual(report["command_style"], "fg=#123456")
+        self.assertEqual(report["alias_style"], "fg=magenta,underline")
+        self.assertEqual(report["error_style"], "fg=red,bold")
+
+    def test_display_identity_in_multiplexer_title(self):
+        report, _ = self.report('field title "$(omz_termsupport_precmd)"',
+                                {"TERM": "tmux-256color"})
+        self.assertIn("Gebura@Kali:", report["title"])
+
+    def test_invalid_palette_color_falls_back(self):
+        palette = self.root / "invalid palette.zsh"
+        palette.write_text("redflake_palette[cyan]='not-a-color'\n")
+        report, result = self.report('''
+field border "$(print -P -- "$PR_CYAN")"
+field command_style "$ZSH_HIGHLIGHT_STYLES[arg0]"
+''', {"REDFLAKE_PALETTE": str(palette)}, normal=False)
+        self.assertIn("invalid palette color for cyan", result.stderr)
+        self.assertIn("\x1b[36m", report["border"])
+        self.assertEqual(report["command_style"], "fg=cyan")
 
     def test_local_and_ssh_editors(self):
         local_report, _ = self.report('field editor "$EDITOR"', {"SSH_CONNECTION": ""})

@@ -136,6 +136,39 @@ configuration with the Jonathan theme and `colored-man-pages`, `git`, and
 highlighting. Colorize uses Pygments. `EDITOR` is `nvim` locally and `vim` when
 `SSH_CONNECTION` is set.
 
+The prompt and terminal title display `Gebura@Kali` independently of the host
+account and hostname. A privileged shell also displays the theme's ROOT marker.
+
+Edit `shell/palette.zsh` to customize the shared prompt, Git status, and syntax
+highlighting palette, then start a new `nix develop` session. The defaults keep
+the Jonathan theme's existing colors: cyan borders and command names, green
+directory/hostname and Git additions, blue clock borders and Git modifications,
+yellow time and quoted strings, magenta substitutions and Git renames, and red
+errors and Git deletions. The `grey` role controls prompt separators and defaults
+to black (shown bold by the theme); `black` controls syntax comments.
+
+Colors accept the names listed in the palette file or quoted six-digit hex
+values such as `'#c0392b'`. Named colors use the terminal's color palette; hex
+colors require a terminal with truecolor support.
+
+For personal overrides without rebuilding, create a palette file with only the
+entries you want to change and select it explicitly:
+
+```zsh
+# ~/.config/redflake/palette.zsh
+redflake_palette[cyan]='#e06c75'
+redflake_palette[blue]='#61afef'
+```
+
+```bash
+REDFLAKE_PALETTE="$HOME/.config/redflake/palette.zsh" nix develop .#core
+```
+
+The override is sourced as zsh configuration. Unspecified entries keep their
+defaults; invalid colors produce a diagnostic and fall back to their defaults.
+The palette covers this shell's prompt and syntax highlighting; terminal
+backgrounds and colors produced by other programs use those programs' settings.
+
 Your host `.zshrc`, `.zshenv`, Oh My Zsh installation, and login shell stay
 untouched. The launcher selects the packaged configuration through `ZDOTDIR`;
 host-wide zsh startup files still apply. An existing `~/.local/bin` remains

@@ -28,6 +28,7 @@ ZSH_THEME="jonathan"
 ZSH_COLORIZE_TOOL=pygmentize
 plugins=(colored-man-pages git colorize)
 source "$ZSH/oh-my-zsh.sh"
+source "$ZDOTDIR/prompt.zsh"
 
 if [[ -n $SSH_CONNECTION ]]; then
   export EDITOR=vim
@@ -98,4 +99,17 @@ ZSH_HIGHLIGHT_STYLES[bracket-level-3]=fg=magenta,bold
 ZSH_HIGHLIGHT_STYLES[bracket-level-4]=fg=yellow,bold
 ZSH_HIGHLIGHT_STYLES[bracket-level-5]=fg=cyan,bold
 ZSH_HIGHLIGHT_STYLES[cursor-matchingbracket]=standout
+# Remap foreground colors while retaining bold, underline, and other attributes.
+() {
+  local style value color
+  for style in ${(k)ZSH_HIGHLIGHT_STYLES}; do
+    value=${ZSH_HIGHLIGHT_STYLES[$style]}
+    if [[ $value == fg=* ]]; then
+      color=${${value#fg=}%%,*}
+      if (( ${+redflake_palette[$color]} )); then
+        ZSH_HIGHLIGHT_STYLES[$style]="fg=${redflake_palette[$color]}${value#fg=$color}"
+      fi
+    fi
+  done
+}
 source "@syntaxHighlighting@"
