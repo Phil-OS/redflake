@@ -12,6 +12,8 @@ in pkgs.stdenvNoCC.mkDerivation {
   installPhase = ''
     runHook preInstall
     mkdir -p "$out/bin" "$out/share/redflake/zsh/custom"
+    cp ${../shell/palette.zsh} "$out/share/redflake/zsh/palette.zsh"
+    cp ${../shell/prompt.zsh} "$out/share/redflake/zsh/prompt.zsh"
     substitute ${../shell/zshrc} "$out/share/redflake/zsh/.zshrc" \
       --replace-fail '@ohMyZsh@' '${pkgs.oh-my-zsh}/share/oh-my-zsh' \
       --replace-fail '@syntaxHighlighting@' '${pkgs.zsh-syntax-highlighting}/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh'
