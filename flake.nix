@@ -12,6 +12,15 @@
       shellPackage = import ./packages/shell.nix { inherit pkgs; };
       bloodhoundCePackage = import ./packages/bloodhound-ce-python.nix { inherit pkgs; };
       zerologonPackage = import ./packages/zerologon.nix { inherit pkgs; };
+      # NetExec uses Python 3.12 in the locked Nixpkgs; the toolkit uses 3.13.
+      # Keep its packaged dependencies ahead of any inherited Python environment.
+      netexecPackage = pkgs.netexec.overrideAttrs (old: {
+        makeWrapperArgs = (old.makeWrapperArgs or [ ]) ++ [
+          "--unset PYTHONPATH" "--unset PYTHONHOME"
+          "--unset NIX_PYTHONPATH" "--unset NIX_PYTHONPREFIX"
+          "--unset NIX_PYTHONEXECUTABLE"
+        ];
+      });
       groups = {
         core = with pkgs; [
           git curl jq ripgrep fzf tmux vim
@@ -21,7 +30,7 @@
         network = with pkgs; [ freerdp ligolo-ng proxychains sshuttle ];
         web = with pkgs; [ dirb ffuf sqlmap ];
         ad = with pkgs; [
-          netexec responder kerbrute evil-winrm
+          netexecPackage responder kerbrute evil-winrm
           bloodhoundCePackage (python3Packages.toPythonApplication python3Packages.bloodyad)
           ldapdomaindump enum4linux-ng krb5 openldap samba
           zerologonPackage
@@ -60,5 +69,24 @@
         bloodhound-ce-python = bloodhoundCePackage;
         zerologon = zerologonPackage;
       };
+      checks.${system}.netexec = pkgs.runCommand "netexec-smb-startup-check" {
+        nativeBuildInputs = [ netexecPackage pkgs.coreutils ];
+      } ''
+        export HOME="$TMPDIR/home"
+        mkdir -p "$HOME"
+        # Empty local targets load SMB imports without connecting to a host.
+        : > "$TMPDIR/targets"
+        for command in nxc netexec NetExec; do
+          timeout 30 "$command" smb "$TMPDIR/targets"
+          PYTHONPATH="${python}/${pkgs.python3.sitePackages}" \
+            timeout 30 "$command" smb "$TMPDIR/targets"
+          PYTHONHOME="$TMPDIR/missing-python" \
+            NIX_PYTHONPATH="${python}/${pkgs.python3.sitePackages}" \
+            NIX_PYTHONPREFIX="${python}" \
+            NIX_PYTHONEXECUTABLE="${python}/bin/python3" \
+            timeout 30 "$command" smb "$TMPDIR/targets"
+        done
+        touch "$out"
+      '';
     };
 }
