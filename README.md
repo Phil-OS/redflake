@@ -74,6 +74,9 @@ in every profile. Ncat is `ncat`, supplied by Nmap alongside `nmap`; DNS
 queries use `dig`. AD/full also supply `kinit`, `klist`, `kdestroy`,
 `ldapsearch`, `smbclient` and `rpcclient`.
 The Python environment contains Impacket, pwntools, and Certipy AD.
+NetExec uses its own packaged Python dependencies and ignores inherited
+`PYTHONPATH`, `PYTHONHOME`, and Nix Python environment overrides. This prevents
+the shared toolkit Python from supplying incompatible compiled modules.
 The selected collector is [BloodHound Community Edition Python 1.9.1](https://pypi.org/project/bloodhound-ce/1.9.1/),
 with command `bloodhound-ce-python` in AD/full. Its source is pinned in a local
 Nix derivation and its dependencies use the locked Nixpkgs. New Python
@@ -246,9 +249,17 @@ arguments; its package check covers isolated imports and Python contamination.
 Checks do not contact targets, test GUI rendering or establish that every tool's
 operational features work. Shell realization is separate from `nix flake check` because
 evaluating a shell does not build its complete dependency closure.
+NetExec checks load its SMB protocol using an empty local target file, including
+with conflicting Python paths and an invalid Python home; help alone does not
+exercise these imports.
 
 ## Host requirements and troubleshooting
 
+- **NetExec `Py_GetConstantBorrowed` import error:** Python 3.12 loaded a
+  compiled dependency from the shared Python 3.13 environment. Use the updated
+  flake and exit/re-enter `nix develop` to activate the isolated NetExec wrapper.
+  In an older shell, `env -u PYTHONPATH -u PYTHONHOME -u NIX_PYTHONPATH -u NIX_PYTHONPREFIX -u NIX_PYTHONEXECUTABLE nxc ...`
+  provides a temporary workaround.
 - **Nix not found after installation:** open a new terminal to load the Nix
   profile. The bootstrap also attempts to load existing installer profile scripts.
 - **Flakes disabled:** check your user Nix config and any `NIX_CONFIG` or

@@ -52,6 +52,14 @@ if [[ "$profile" == ad || "$profile" == full || "$profile" == default ]]; then
         temporary=$(mktemp -d)
         trap 'rm -rf "$temporary"' EXIT
         cd "$temporary"
+        # An empty target file loads SMB without contacting any hosts. Help exits
+        # before protocol imports and misses incompatible Python dependencies.
+        : > targets
+        toolkit_python_path=$(python3 -c 'import sysconfig; print(sysconfig.get_path("purelib"))')
+        python_startup_check env HOME="$temporary" nxc smb "$temporary/targets"
+        python_startup_check env HOME="$temporary" PYTHONPATH="$toolkit_python_path" nxc smb "$temporary/targets"
+        python_startup_check env HOME="$temporary" NIX_PYTHONPATH="$toolkit_python_path" nxc smb "$temporary/targets"
+        python_startup_check env HOME="$temporary" PYTHONHOME="$temporary/missing-python" nxc smb "$temporary/targets"
         status=0
         output=$(timeout 15 zerologon-exploit 2>&1) || status=$?
         if [[ "$status" != 1 || "$output" != *Usage:* ]]; then
