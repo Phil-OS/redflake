@@ -11,6 +11,8 @@
       };
       shellPackage = import ./packages/shell.nix { inherit pkgs; };
       bloodhoundCePackage = import ./packages/bloodhound-ce-python.nix { inherit pkgs; };
+      impacketPackage = import ./packages/impacket.nix { inherit pkgs; };
+      evilWinrmPackage = import ./packages/evil-winrm.nix { inherit pkgs; };
       zerologonPackage = import ./packages/zerologon.nix { inherit pkgs; };
       # NetExec uses Python 3.12 in the locked Nixpkgs; the toolkit uses 3.13.
       # Keep its packaged dependencies ahead of any inherited Python environment.
@@ -30,7 +32,7 @@
         network = with pkgs; [ freerdp ligolo-ng proxychains sshuttle ];
         web = with pkgs; [ dirb ffuf sqlmap ];
         ad = with pkgs; [
-          netexecPackage responder kerbrute evil-winrm
+          netexecPackage impacketPackage responder kerbrute evilWinrmPackage
           bloodhoundCePackage (python3Packages.toPythonApplication python3Packages.bloodyad)
           ldapdomaindump enum4linux-ng krb5 openldap samba
           zerologonPackage
@@ -67,9 +69,27 @@
       packages.${system} = {
         redflake-shell = shellPackage;
         bloodhound-ce-python = bloodhoundCePackage;
+        impacket = impacketPackage;
+        evil-winrm = evilWinrmPackage;
         zerologon = zerologonPackage;
       };
       checks.${system} = {
+        evil-winrm = pkgs.runCommand "evil-winrm-startup-check" {
+          nativeBuildInputs = [ evilWinrmPackage pkgs.coreutils pkgs.gnugrep ];
+        } ''
+          export HOME="$TMPDIR/home"
+          mkdir -p "$HOME"
+          # Help loads winrm-fs and its Ruby dependencies without a remote target.
+          for option in -h --help; do
+            timeout 15 evil-winrm "$option" > "$TMPDIR/help"
+            grep -F 'Usage: evil-winrm' "$TMPDIR/help"
+          done
+          # Nixpkgs supplies the bundled Ruby as evil-winrm's build input.
+          # Validate that the generated Gemfile and lockfile also work in Bundler.
+          timeout 15 ${(builtins.head evilWinrmPackage.buildInputs)}/bin/ruby \
+            -rbundler/setup -rcsv -rwinrm-fs -e 'exit'
+          touch "$out"
+        '';
         bloodhound-ce-python = bloodhoundCePackage;
         zerologon = zerologonPackage;
         shell = pkgs.runCommand "redflake-shell-checks" {
