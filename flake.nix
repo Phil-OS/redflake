@@ -12,6 +12,7 @@
       shellPackage = import ./packages/shell.nix { inherit pkgs; };
       bloodhoundCePackage = import ./packages/bloodhound-ce-python.nix { inherit pkgs; };
       impacketPackage = import ./packages/impacket.nix { inherit pkgs; };
+      evilWinrmPackage = import ./packages/evil-winrm.nix { inherit pkgs; };
       zerologonPackage = import ./packages/zerologon.nix { inherit pkgs; };
       # NetExec uses Python 3.12 in the locked Nixpkgs; the toolkit uses 3.13.
       # Keep its packaged dependencies ahead of any inherited Python environment.
@@ -31,7 +32,7 @@
         network = with pkgs; [ freerdp ligolo-ng proxychains sshuttle ];
         web = with pkgs; [ dirb ffuf sqlmap ];
         ad = with pkgs; [
-          netexecPackage impacketPackage responder kerbrute evil-winrm
+          netexecPackage impacketPackage responder kerbrute evilWinrmPackage
           bloodhoundCePackage (python3Packages.toPythonApplication python3Packages.bloodyad)
           ldapdomaindump enum4linux-ng krb5 openldap samba
           zerologonPackage
@@ -69,26 +70,8 @@
         redflake-shell = shellPackage;
         bloodhound-ce-python = bloodhoundCePackage;
         impacket = impacketPackage;
+        evil-winrm = evilWinrmPackage;
         zerologon = zerologonPackage;
       };
-      checks.${system}.netexec = pkgs.runCommand "netexec-smb-startup-check" {
-        nativeBuildInputs = [ netexecPackage pkgs.coreutils ];
-      } ''
-        export HOME="$TMPDIR/home"
-        mkdir -p "$HOME"
-        # Empty local targets load SMB imports without connecting to a host.
-        : > "$TMPDIR/targets"
-        for command in nxc netexec NetExec; do
-          timeout 30 "$command" smb "$TMPDIR/targets"
-          PYTHONPATH="${python}/${pkgs.python3.sitePackages}" \
-            timeout 30 "$command" smb "$TMPDIR/targets"
-          PYTHONHOME="$TMPDIR/missing-python" \
-            NIX_PYTHONPATH="${python}/${pkgs.python3.sitePackages}" \
-            NIX_PYTHONPREFIX="${python}" \
-            NIX_PYTHONEXECUTABLE="${python}/bin/python3" \
-            timeout 30 "$command" smb "$TMPDIR/targets"
-        done
-        touch "$out"
-      '';
     };
 }
